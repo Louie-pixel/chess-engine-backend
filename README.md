@@ -76,7 +76,7 @@ CMake (v3.10+)
 Build Steps:
 
 # Clone the repository
-git clone [https://github.com/yourusername/cpp-chess-engine.git](https://github.com/yourusername/cpp-chess-engine.git)
+git clone [https://github.com/yourusername/cpp-chess-engine.git](https://github.com/Louie-pixel/chess-engine-backend.git)
 cd cpp-chess-engine
 
 # Create build directory and compile
