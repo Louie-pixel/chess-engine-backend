@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stockfish Clone Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <!-- jQuery is required for chessboard.js -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Chessboard.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css" integrity="sha384-q94+BZtLrkL1/ohOuzB01FX82jUqGZIf24AfxXzBfE18qQeAkeaFp28vQ21Bzh3z" crossorigin="anonymous">
+    
+    <style>
+        :root {
+            /* Color Palette */
+            --bg-dark: #0f172a;
+            --bg-panel: #1e293b;
+            --bg-panel-hover: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --border-color: #334155;
+            
+            /* Typography */
+            --font-sans: 'Inter', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+            
+            /* Sizing & Spacing */
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            
+            /* Shadows */
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* STREAMING_CHUNK: Styling the layout structure... -->
+        header {
+            background-color: var(--bg-panel);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .header-title .material-icons-round {
+            color: var(--accent-primary);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent-danger);
+            transition: background-color 0.3s ease;
+        }
+
+        .status-dot.connected {
+            background-color: var(--accent-success);
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: minmax(400px, 1fr) 350px;
+            gap: var(--spacing-lg);
+            padding: var(--spacing-lg);
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .board-container {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+            background-color: var(--bg-panel);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .board-wrapper {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: stretch;
+        }
+
+        #myBoard {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .eval-bar-container {
+            width: 24px;
+            background-color: #222; /* Dark side (Black's advantage) */
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+        }
+
+        .eval-bar-fill {
+            width: 100%;
+            background-color: #eee; /* Light side (White's advantage) */
+            height: 50%; /* Default 0.0 eval */
+            transition: height 0.5s ease-in-out;
+            position: absolute;
+            bottom: 0;
+        }
+        
+        .eval-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .eval-text.white {
+            color: #222;
+            bottom: 4px;
+        }
+
+        .eval-text.black {
+            color: #eee;
+            top: 4px;
+        }
+
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .panel-section {
+            background-color: var(--bg-panel);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            box-shadow: var(--shadow-md);
+        }
+
+        .panel-title {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background-color: var(--bg-panel-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 0.5rem 1rem;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn.primary {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .btn.primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn.danger {
+            background-color: transparent;
+            color: var(--accent-danger);
+            border-color: var(--accent-danger);
+        }
+        
+        .btn.danger:hover {
+            background-color: var(--accent-danger);
+            color: white;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+
+        .setting-control {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .setting-control label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .setting-control input[type="number"],
+        .setting-control select {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+        }
+        
+        .setting-control input:focus,
+        .setting-control select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .log-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 250px;
+        }
+
+        .terminal {
+            background-color: #000;
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            flex: 1;
+            overflow-y: auto;
+            color: #a3be8c; /* Greenish terminal text */
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .terminal span.out { color: #81a1c1; } /* Blue for outbound (GUI -> Engine) */
+        .terminal span.in { color: #a3be8c; }  /* Green for inbound (Engine -> GUI) */
+        .terminal span.err { color: #bf616a; } /* Red for errors */
+        .terminal span.info { color: #ebcb8b; }/* Yellow for info */
+
+        /* Engine Info display */
+        .engine-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-top: var(--spacing-md);
+        }
+
+        .stat-box {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            font-weight: 700;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <span class="material-icons-round">psychology</span>
+            Custom Engine Dashboard
+        </div>
+        <div class="connection-status">
+            <div class="status-dot" id="ws-dot"></div>
+            <span id="ws-text">Disconnected</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Left Column: Board -->
+        <section class="board-container">
+            <div class="board-wrapper">
+                <div class="eval-bar-container" title="Engine Evaluation">
+                    <div class="eval-bar-fill" id="eval-fill"></div>
+                    <div class="eval-text white" id="eval-w">0.0</div>
+                    <div class="eval-text black" id="eval-b" style="display:none;"></div>
+                </div>
+                <div id="myBoard"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn" id="btn-flip">
+                    <span class="material-icons-round">flip_camera_android</span> Flip Board
+                </button>
+                <button class="btn primary" id="btn-analyze">
+                    <span class="material-icons-round">search</span> Analyze Position
+                </button>
+                <button class="btn" id="btn-move">
+                    <span class="material-icons-round">smart_toy</span> Make Move
+                </button>
+            </div>
+            
+            <div class="engine-stats">
+                <div class="stat-box">
+                    <div class="stat-label">Depth</div>
+                    <div class="stat-value" id="stat-depth">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Nodes/sec</div>
+                    <div class="stat-value" id="stat-nps">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Score</div>
+                    <div class="stat-value" id="stat-score">-</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Controls & Logs -->
+        <section class="controls-panel">
+            <div class="panel-section">
+                <div class="panel-title">
+                    <span class="material-icons-round">settings</span> Game Controls
+                </div>
+                <div class="btn-group" style="margin-bottom: var(--spacing-md);">
+                    <button class="btn" id="btn-startpos">Start Pos</button>
+                    <button class="btn danger" id="btn-stop">
+                        <span class="material-icons-round">stop</span> Stop Engine
+                    </button>
+                </div>
+                <div class="settings-grid">
+                    <div class="setting-control">
+                        <label for="search-time">Search Time (ms)</label>
+                        <input type="number" id="search-time" value="1000" step="100" min="100">
+                    </div>
+                    <div class="setting-control">
+                        <label for="search-depth">Max Depth</label>
+                        <input type="number" id="search-depth" value="6" step="1" min="1" max="20">
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section log-container">
+                <div class="panel-title">
+                    <span class="material-icons-round">terminal</span> UCI Communication Log
+                </div>
+                <div class="terminal" id="terminal">
+                    <!-- Logs will appear here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- load chess.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <!-- load chessboard.js via CDN -->
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js" integrity="sha384-8Vi8VHwn3vjQ9eUHUxex3Jv//qQAqO3F6KaVq2sKktpA0O8HqE0//R1uzPR0FfE1" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- State Variables ---
+            let board = null;
+            let game = new Chess();
+            let socket = null;
+            let isConnected = false;
+            let isAnalyzing = false;
+            let currentOrientation = 'white';
+
+            // --- DOM Elements ---
+            const dom = {
+                terminal: document.getElementById('terminal'),
+                wsDot: document.getElementById('ws-dot'),
+                wsText: document.getElementById('ws-text'),
+                btnStartPos: document.getElementById('btn-startpos'),
+                btnFlip: document.getElementById('btn-flip'),
+                btnAnalyze: document.getElementById('btn-analyze'),
+                btnMove: document.getElementById('btn-move'),
+                btnStop: document.getElementById('btn-stop'),
+                inputTime: document.getElementById('search-time'),
+                inputDepth: document.getElementById('search-depth'),
+                statDepth: document.getElementById('stat-depth'),
+                statNps: document.getElementById('stat-nps'),
+                statScore: document.getElementById('stat-score'),
+                evalFill: document.getElementById('eval-fill'),
+                evalW: document.getElementById('eval-w'),
+                evalB: document.getElementById('eval-b')
+            };
+
+            // --- Helper Functions ---
+            function logMsg(msg, type) {
+                const span = document.createElement('span');
+                span.className = type;
+                
+                let prefix = '';
+                if(type === 'out') prefix = '> ';
+                if(type === 'in') prefix = '< ';
+                if(type === 'err') prefix = '! ';
+                
+                span.textContent = prefix + msg;
+                dom.terminal.appendChild(span);
+                
+                // Auto-scroll to bottom
+                dom.terminal.scrollTop = dom.terminal.scrollHeight;
+                
+                // Keep log bounded to prevent memory issues
+                if (dom.terminal.childNodes.length > 200) {
+                    dom.terminal.removeChild(dom.terminal.firstChild);
+                }
+            }
+
+            function sendUCI(command) {
+                if (socket && isConnected) {
+                    logMsg(command, 'out');
+                    socket.send(command);
+                } else {
+                    logMsg('Cannot send command. Not connected to server.', 'err');
+                }
+            }
+
+            function syncEnginePosition() {
+                // Send current board FEN to the engine
+                sendUCI(`position fen ${game.fen()}`);
+            }
+
+            function updateEvalBar(scoreCp, isMate, mateIn) {
+                if (isMate) {
+                    // Force bar to top/bottom for mate
+                    const isWhiteMate = mateIn > 0;
+                    dom.evalFill.style.height = isWhiteMate ? '100%' : '0%';
+                    const text = `M${Math.abs(mateIn)}`;
+                    if (isWhiteMate) {
+                        dom.evalW.textContent = text;
+                        dom.evalW.style.display = 'block';
+                        dom.evalB.style.display = 'none';
+                    } else {
+                        dom.evalB.textContent = text;
+                        dom.evalB.style.display = 'block';
+                        dom.evalW.style.display = 'none';
+                    }
+                    dom.statScore.textContent = `Mate in ${Math.abs(mateIn)}`;
+                } else {
+                    // Normalize score. Let's say +5 or -5 CP is 100% or 0%
+                    // Sigmoid-like mapping to keep it between 0 and 100
+                    const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+                    const evalScale = 1000; // 10 pawns is max scale
+                    const percentage = 50 + clamp((scoreCp / evalScale) * 50, -50, 50);
+                    
+                    dom.evalFill.style.height = `${percentage}%`;
+                    
+                    const scoreText = (scoreCp / 100).toFixed(2);
+                    dom.statScore.textContent = scoreText;
+
+                    if (scoreCp >= 0) {
+                        dom.evalW.textContent = scoreText;
+                        dom.evalW.style.display = 'block';
+                        dom.evalB.style.display = 'none';
+                    } else {
+                        dom.evalB.textContent = Math.abs(scoreCp / 100).toFixed(2);
+                        dom.evalB.style.display = 'block';
+                        dom.evalW.style.display = 'none';
+                    }
+                }
+            }
+
+            // --- WebSocket Setup ---
+            // Assuming your C++ HTTP server upgrades to WebSockets on /ws
+            function connect() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                // Try connecting to same host/port. Adjust if your C++ server is elsewhere.
+                const wsUrl = `${protocol}//${window.location.host}/ws`; 
+                
+                try {
+                    socket = new WebSocket(wsUrl);
+                    logMsg(`Attempting to connect to ${wsUrl}...`, 'info');
+
+                    socket.onopen = () => {
+                        isConnected = true;
+                        dom.wsDot.classList.add('connected');
+                        dom.wsText.textContent = 'Engine Connected';
+                        logMsg('WebSocket connected successfully.', 'info');
+                        
+                        // Initialize engine
+                        sendUCI('uci');
+                        sendUCI('isready');
+                    };
+
+                    socket.onmessage = (event) => {
+                        const msg = event.data;
+                        logMsg(msg, 'in');
+                        
+                        // Parse UCI Output
+                        if (msg.startsWith('info')) {
+                            // Extract depth
+                            const depthMatch = msg.match(/depth (\d+)/);
+                            if (depthMatch) dom.statDepth.textContent = depthMatch[1];
+                            
+                            // Extract nps
+                            const npsMatch = msg.match(/nps (\d+)/);
+                            if (npsMatch) dom.statNps.textContent = npsMatch[1];
+                            
+                            // Extract score
+                            const cpMatch = msg.match(/score cp (-?\d+)/);
+                            const mateMatch = msg.match(/score mate (-?\d+)/);
+                            
+                            if (mateMatch) {
+                                updateEvalBar(0, true, parseInt(mateMatch[1], 10));
+                            } else if (cpMatch) {
+                                updateEvalBar(parseInt(cpMatch[1], 10), false, 0);
+                            }
+                        }
+                        
+                        if (msg.startsWith('bestmove')) {
+                            isAnalyzing = false;
+                            dom.btnAnalyze.innerHTML = '<span class="material-icons-round">search</span> Analyze Position';
+                            
+                            const parts = msg.split(' ');
+                            if (parts.length > 1 && parts[1] !== '(none)') {
+                                const moveStr = parts[1]; // e.g. "e2e4"
+                                // Make move on board if we asked for a move
+                                if (board && game) {
+                                    const source = moveStr.substring(0, 2);
+                                    const target = moveStr.substring(2, 4);
+                                    const promotion = moveStr.length > 4 ? moveStr.charAt(4) : undefined;
+                                    
+                                    game.move({ from: source, to: target, promotion: promotion });
+                                    board.position(game.fen());
+                                }
+                            }
+                        }
+                    };
+
+                    socket.onclose = () => {
+                        isConnected = false;
+                        dom.wsDot.classList.remove('connected');
+                        dom.wsText.textContent = 'Disconnected';
+                        logMsg('WebSocket connection closed.', 'err');
+                        // Try to reconnect after a delay
+                        setTimeout(connect, 3000);
+                    };
+
+                    socket.onerror = (err) => {
+                        logMsg(`WebSocket error. Is the C++ server running?`, 'err');
+                    };
+                } catch (e) {
+                    logMsg(`Connection error: ${e.message}`, 'err');
+                }
+            }
+
+            // --- Chessboard.js Setup ---
+            
+            function onDragStart (source, piece, position, orientation) {
+                // do not pick up pieces if the game is over
+                if (game.game_over()) return false;
+
+                // only pick up pieces for the side to move
+                if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+                    (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+                    return false;
+                }
+            }
+
+            function onDrop (source, target) {
+                // see if the move is legal
+                var move = game.move({
+                    from: source,
+                    to: target,
+                    promotion: 'q' // NOTE: always promote to a queen for example simplicity
+                });
+
+                // illegal move
+                if (move === null) return 'snapback';
+
+                // Send position to engine and ask for eval/move if analyzing
+                if (isAnalyzing) {
+                    sendUCI('stop');
+                    setTimeout(() => {
+                        syncEnginePosition();
+                        sendUCI(`go depth ${dom.inputDepth.value}`);
+                    }, 100);
+                } else {
+                    syncEnginePosition();
+                }
+            }
+
+            // update the board position after the piece snap
+            // for castling, en passant, pawn promotion
+            function onSnapEnd () {
+                board.position(game.fen());
+            }
+
+            const config = {
+                draggable: true,
+                position: 'start',
+                onDragStart: onDragStart,
+                onDrop: onDrop,
+                onSnapEnd: onSnapEnd,
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+            };
+            
+            board = Chessboard('myBoard', config);
+
+            // --- Event Listeners ---
+            
+            dom.btnStartPos.addEventListener('click', () => {
+                game.reset();
+                board.start();
+                sendUCI('stop');
+                sendUCI('ucinewgame');
+                syncEnginePosition();
+                updateEvalBar(0, false, 0);
+            });
+
+            dom.btnFlip.addEventListener('click', () => {
+                currentOrientation = currentOrientation === 'white' ? 'black' : 'white';
+                board.orientation(currentOrientation);
+            });
+
+            dom.btnAnalyze.addEventListener('click', () => {
+                if (isAnalyzing) {
+                    sendUCI('stop');
+                    isAnalyzing = false;
+                    dom.btnAnalyze.innerHTML = '<span class="material-icons-round">search</span> Analyze Position';
+                } else {
+                    syncEnginePosition();
+                    const depth = dom.inputDepth.value;
+                    sendUCI(`go depth ${depth}`);
+                    isAnalyzing = true;
+                    dom.btnAnalyze.innerHTML = '<span class="material-icons-round">stop</span> Stop Analysis';
+                }
+            });
+
+            dom.btnMove.addEventListener('click', () => {
+                syncEnginePosition();
+                const time = dom.inputTime.value;
+                sendUCI(`go movetime ${time}`);
+            });
+
+            dom.btnStop.addEventListener('click', () => {
+                sendUCI('stop');
+                isAnalyzing = false;
+                dom.btnAnalyze.innerHTML = '<span class="material-icons-round">search</span> Analyze Position';
+            });
+
+            // Handle window resize for responsiveness
+            window.addEventListener('resize', () => {
+                if(board) board.resize();
+            });
+
+            // Start connection attempt
+            connect();
+        });
+    </script>
+</body>
+</html>
